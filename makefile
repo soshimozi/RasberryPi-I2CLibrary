@@ -22,19 +22,20 @@ OBJ=$(patsubst %,$(BUILD)/%,$(_OBJ))
 all: libi2c.so
 
 libi2c.a: $(OBJ)
-        -rm -f libi2c.a
-        $(libi2c_a_AR) libi2c.a $(OBJ)
-        $(RANLIB) libi2c.a
+	rm -f libi2c.a
+	$(libi2c_a_AR) libi2c.a $(OBJ)
+	$(RANLIB) libi2c.a
 
 libi2c.so: libi2c.a
-        $(CCLIB) -shared $(BUILD)/pi_i2c.o -o $@
+	$(CCLIB) -shared $(BUILD)/pi_i2c.o -o $@
 
 $(BUILD)/%.o: %.c $(DEPS)
-        $(CC) -c -o $@ $< $(CFLAGS)
+	 $(CC) -c -o $@ $< $(CFLAGS)
 
 .PHONY: clean
 
 clean:
-        rm -f $(BUILD)/*.o *~ core
-        rm -f *.so
-        rm -f *.a
+	rm -f $(BUILD)/*.o *~ core
+	rm -f *.so
+	rm -f *.a
+
