@@ -13,11 +13,8 @@ const char * const channel_location[] = {"/dev/i2c-0", "/dev/i2c-1"};
 
 bcm2835_i2c_peripheral bcm2835_i2c = {BCM2835_I2C_BASE};
 
-static int memfd = -1;
-
 int map_peripheral(bcm2835_i2c_peripheral *p);
 void unmap_peripheral(bcm2835_i2c_peripheral *p);
-void unmapmem(void **pmem, size_t size);
 
 // Function to wait for the I2C transaction to complete
 void wait_i2c_done() {
@@ -27,7 +24,7 @@ void wait_i2c_done() {
             usleep(1000);
         }
         if(timeout == 0)
-            printf("wait_i2c_done() timeout. Something went wrong.\n");
+            fprintf(stderr, "wait_i2c_done() timeout. Something went wrong.\n");
 }
 
 void i2c_strobe_read() {
@@ -46,10 +43,10 @@ void i2c_strobe_write() {
 
 int bcm2835_i2c_file_open(int chan, int addr) {
 
-		if (chan > 1 || chan < 0) {
-			perror("Invalid channel.");
-			return -1;
-		}
+	if (chan > 1 || chan < 0) {
+		fprintf(stderr, "Invalid channel.");
+		return -1;
+	}
 
         int handle = open(channel_location[chan], O_RDWR);
 
@@ -84,14 +81,9 @@ int bcm2835_i2c_file_write(int file_handle, unsigned char * buf, int len) {
 }
 
 int bcm2835_i2c_mem_init(void) {
-	// Open /dev/mem
-	if ((memfd = open("/dev/mem", O_RDWR|O_SYNC) ) < 0) {
-		perror("Failed to open /dev/mem, try checking permissions.\n");
-		return 0;
-	}
 
 	if(map_peripheral(&bcm2835_i2c) == -1) {
-		perror("Failed to map the physical BSC0 (I2C) registers into the virtual memory space.\n");
+		fprintf(stderr, "Failed to map the physical BSC0 (I2C) registers into the virtual memory space.\n");
 		return 0;
 	}
 
@@ -103,11 +95,6 @@ int bcm2835_i2c_mem_init(void) {
 int bcm2835_i2c_mem_close(void) {
 
     unmap_peripheral(&bcm2835_i2c);
-    if (memfd >= 0) {
-    	close(memfd);
-    	memfd = -1;
-    }
-
     return 1;
 }
 
@@ -115,11 +102,6 @@ int bcm2835_i2c_mem_close(void) {
 
 // Exposes the physical address defined in the passed structure using mmap on /dev/mem
 int map_peripheral(bcm2835_i2c_peripheral *p) {
-
-	if (!memfd) {
-		perror("Invalid memory descriptor.  Please call initialize.");
-		return -1;
-	}
 
 	// Open /dev/mem
 	if ((p->mem_fd = open("/dev/mem", O_RDWR|O_SYNC) ) < 0) {
@@ -214,24 +196,26 @@ int bcm2835_i2c_mem_read(int addr, unsigned char *buf, int len) {
 }
 
 void unmap_peripheral(bcm2835_i2c_peripheral *p) {
-	unmapmem(p->map, BCM2835_BLOCK_SIZE);
-}
-
-void unmapmem(void **pmem, size_t size) {
-    if(*pmem == MAP_FAILED) return;
-    munmap(*pmem, size);
-    *pmem = MAP_FAILED;
+	munmap(p->map, BCM2835_BLOCK_SIZE);
+	close(p->mem_fd);
 }
 
 #ifdef TEST
 int main(void) {
-	unsigned char buffer[3] = {'L', '1', '0'};
+	unsigned char buffer[3] = {'L', '1', '1'};
 	
 	printf("Test!\n");
 	
 	bcm2835_i2c_mem_init();
 	
 	bcm2835_i2c_mem_write(0x2A, buffer, 3);
+
+	usleep(2000000);
+
+	buffer[2] = '0';
+	bcm2835_i2c_mem_write(0x2A, buffer, 3);
+
+	usleep(2000000);
 	
 	bcm2835_i2c_mem_close();
 
